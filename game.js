@@ -1,19 +1,44 @@
-/* ASTRO OPS — versão enxuta, robusta para deploy (GitHub Pages / Netlify) */
+/* ASTRO OPS — Asteroids-like • Grande + Tela Cheia + Fixes CodePen/Deploy */
 (function () {
-  // ===== Canvas & DPI garantidos =====
+  // ===== Canvas & DPI
   const DPR = Math.max(1, window.devicePixelRatio || 1);
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
 
+  // dimensionamento preciso: usa altura do header/footer
   function fitCanvas() {
+    const hud = document.querySelector('.hud');
+    const help = document.querySelector('.help');
+    const availH = Math.max(200, window.innerHeight - (hud?.offsetHeight||0) - (help?.offsetHeight||0));
+    canvas.style.height = availH + 'px';
+
     const rect = canvas.getBoundingClientRect();
-    const w = rect.width || (canvas.parentElement?.clientWidth || 800);
-    const h = rect.height || (canvas.parentElement?.clientHeight || 500);
+    const w = rect.width || (canvas.parentElement?.clientWidth || window.innerWidth);
+    const h = rect.height || availH;
     canvas.width  = Math.round(w * DPR);
     canvas.height = Math.round(h * DPR);
   }
-  window.addEventListener('resize', () => { fitCanvas(); }, {passive:true});
+  window.addEventListener('resize', () => requestAnimationFrame(fitCanvas), {passive:true});
+  // 2 RAF garantem que o CSS aplicou antes do cálculo
   requestAnimationFrame(() => requestAnimationFrame(fitCanvas));
+  // fallback no 1º clique
+  canvas.addEventListener('mousedown', function once(){ if(!canvas.width||!canvas.height) fitCanvas(); canvas.removeEventListener('mousedown', once); }, {once:true});
+
+  // ===== Fullscreen (F / botão ⛶)
+  const wrap = document.querySelector('.wrap');
+  const btnFS = document.getElementById('btnFS');
+  async function goFullscreen() {
+    const el = wrap || document.documentElement;
+    if (!document.fullscreenElement) {
+      await el.requestFullscreen?.();
+    } else {
+      await document.exitFullscreen?.();
+    }
+    setTimeout(fitCanvas, 50);
+  }
+  btnFS?.addEventListener('click', goFullscreen);
+  window.addEventListener('keydown', (e)=>{ if (e.key.toLowerCase()==='f') { e.preventDefault(); goFullscreen(); }});
+  document.addEventListener('fullscreenchange', fitCanvas);
 
   // ===== HUD/Overlay
   const $ = s => document.querySelector(s);
@@ -28,7 +53,7 @@
   });
   window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 
-  // ===== Áudio (opcional)
+  // ===== Áudio (WebAudio robusto)
   let audio = null, muted = false;
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -50,14 +75,14 @@
   const sBoom =()=>beep({freq:90,type:'triangle',dur:.18,vol:.30,slide:.5});
   const sHyper=()=>beep({freq:600,type:'sine',dur:.20,vol:.20});
 
-  // ===== Util =====
+  // ===== Util
   const W = () => canvas.width, H = () => canvas.height;
   const rand=(a=1,b)=> b===undefined?Math.random()*a: a+Math.random()*(b-a);
   const rint=(a,b)=>Math.floor(rand(a,b));
   const wrap=(v,max)=> (v+max)%max;
   const dist2=(a,b)=>{const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy;};
 
-  // ===== Estado =====
+  // ===== Estado
   let gameRunning=false, paused=false;
   let score=0, level=1, hiScore=Number(localStorage.getItem('astroops.hi')||0);
   let lives=3, bullets=[], rocks=[], parts=[], ship=null;
@@ -65,7 +90,7 @@
   elHi.textContent = hiScore;
   ovHi.textContent = hiScore;
 
-  // ===== Entidades =====
+  // ===== Entidades
   class Ship{
     constructor(){ this.x=W()/2; this.y=H()/2; this.vx=0; this.vy=0; this.a=-Math.PI/2; this.r=16*DPR; this.inv=2; this.cool=0; this.thr=false; }
     reset(){ Object.assign(this,new Ship()); }
@@ -126,11 +151,11 @@
     draw(){ const a=Math.max(0,this.life/this.max); ctx.save(); ctx.strokeStyle=this.t==='bm'?`rgba(255,107,107,${a})`:`rgba(69,255,156,${a})`; ctx.lineWidth=this.t==='bm'?2*DPR:1.5*DPR; ctx.beginPath(); ctx.moveTo(this.x,this.y); ctx.lineTo(this.x-this.vx*.05, this.y-this.vy*.05); ctx.stroke(); ctx.restore(); }
   }
 
-  // ===== Colisão
+  // ===== Colisões
   const hitBR=(b,r)=> dist2(b,r) < (b.r + r.r)**2;
   const hitSR=(s,r)=> dist2(s,r) < (s.r + r.r*.85)**2;
 
-  // ===== Fase
+  // ===== Fases
   function spawnLevel(n=level){
     rocks.length=0;
     const count=3+n;
@@ -171,14 +196,30 @@
   }
   function render(){
     ctx.clearRect(0,0,W(),H());
-    // estrelas
+    // estrelas de fundo
     ctx.save(); ctx.globalAlpha=.25; ctx.fillStyle='#89b7d3';
     for(let i=0;i<40;i++){ const x=(i*97)%W(), y=(i*233)%H(); ctx.fillRect(x,y,2*DPR,2*DPR); }
     ctx.restore();
-    rocks.forEach(r=>r.draw()); bullets.forEach(b=>b.draw()); parts.forEach(p=>p.draw()); ship && ship.draw();
+
+    rocks.forEach(r=>r.draw());
+    bullets.forEach(b=>b.draw());
+    parts.forEach(p=>p.draw());
+    ship && ship.draw();
+
     // vidas
     ctx.save(); ctx.translate(12*DPR,14*DPR);
-    for(let i=0;i<Math.max(0,lives);i++){ ctx.save(); ctx.translate(i*20*DPR,0); ctx.strokeStyle='#45ff9c'; ctx.lineWidth=2*DPR; ctx.beginPath(); ctx.moveTo(10*DPR,0); ctx.lineTo(-8*DPR,7*DPR); ctx.lineTo(-4*DPR,0); ctx.lineTo(-8*DPR,-7*DPR); ctx.closePath(); ctx.stroke(); ctx.restore(); }
+    for(let i=0;i<Math.max(0,lives);i++){
+      ctx.save(); ctx.translate(i*20*DPR,0);
+      ctx.strokeStyle='#45ff9c'; ctx.lineWidth=2*DPR;
+      ctx.beginPath();
+      ctx.moveTo(10*DPR,0);
+      ctx.lineTo(-8*DPR,7*DPR);
+      ctx.lineTo(-4*DPR,0);
+      ctx.lineTo(-8*DPR,-7*DPR);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.restore();
   }
   function loop(t){
@@ -190,7 +231,7 @@
   }
   requestAnimationFrame(loop);
 
-  // ===== Controla jogo
+  // ===== Controle do jogo
   function startGame(){
     score=0; level=1; lives=3; elScore.textContent=0; elLevel.textContent=1;
     bullets.length=0; rocks.length=0; parts.length=0;
@@ -205,10 +246,8 @@
     overlay.classList.remove('hidden');
   }
 
-  // estado inicial
+  // estado inicial + atalhos
   ovScore.textContent=0; ovLevel.textContent=1; overlay.classList.remove('hidden');
-
-  // teclado global
   window.addEventListener('keydown', e=>{
     const k=e.key.toLowerCase();
     if(!gameRunning && (k===' ' || k==='r')){ startGame(); return; }
@@ -216,4 +255,6 @@
     if(k==='m'){ muted=!muted; }
     if(k==='r'){ startGame(); }
   });
+
 })();
+
