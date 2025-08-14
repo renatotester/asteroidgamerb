@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ASTRO OPS • Asteroids-like</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="hud">
+      <div class="left">
+        <span>Score: <b id="score">0</b></span>
+        <span>Level: <b id="level">1</b></span>
+      </div>
+      <h1>ASTRO OPS</h1>
+      <div class="right">
+        <span>Hi: <b id="hiScore">0</b></span>
+        <span>FPS: <b id="fps">60</b></span>
+      </div>
+    </header>
+
+    <canvas id="game"></canvas>
+
+    <footer class="help">
+      ← → girar • ↑ acelerar • Espaço atirar • H hiper‑salto • P pausa • M mute • R reiniciar
+    </footer>
+
+    <div id="overlay" class="overlay">
+      <div class="card">
+        <h2 id="title">ASTRO OPS</h2>
+        <p id="subtitle">Pressione <b>Espaço</b> para começar</p>
+        <div class="stats">
+          <div>Score: <b id="ovScore">0</b></div>
+          <div>Hi: <b id="ovHi">0</b></div>
+          <div>Level: <b id="ovLevel">1</b></div>
+        </div>
+        <p class="mini">© Você • Canvas + WebAudio • Sem libs</p>
+      </div>
+    </div>
+  </div>
+
+  <script defer src="game.js"></script>
+</body>
+</html>
