@@ -2,7 +2,6 @@
   --bg:#0a0f14; --hud:#9bd4ff; --ink:#e4f2ff;
   --accent:#45ff9c; --muted:#7aa0bd;
 }
-
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
@@ -10,8 +9,11 @@ body{
   color:var(--ink); background:linear-gradient(180deg,#060a0f,#08121b);
 }
 
-/* ocupa praticamente a janela toda, inclusive em mobile (svh) */
-.wrap{display:flex; flex-direction:column; height:100svh}
+/* ocupa praticamente a janela toda, inclusive em mobile (svh quando disponível) */
+.wrap{display:flex; flex-direction:column; height:100vh; height:100svh;}
+/* modo "max" (fallback quando fullscreen é bloqueado): esconde HUD/Help e usa a tela inteira */
+.wrap.max .hud, .wrap.max .help{ display:none !important; }
+.wrap.max #game{ min-height:100vh; }
 
 .hud{
   display:flex; align-items:center; justify-content:space-between;
@@ -27,7 +29,7 @@ body{
 
 #game{
   flex:1; width:100%; height:100%;
-  min-height: 520px; /* deixa grande mesmo em telas baixas */
+  min-height:560px; /* deixa grande mesmo em telas baixas */
   display:block; background:
     radial-gradient(1200px 700px at 10% -10%, #0f1b26 0, transparent 70%),
     radial-gradient(800px 500px at 90% 110%, #0b1520 0, transparent 70%),
@@ -52,4 +54,5 @@ body{
 .card .mini{color:#6e92a9; font-size:12px}
 .stats{display:flex; gap:18px; justify-content:center; margin:8px 0 4px;}
 b{color:#fff}
+
 
