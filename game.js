@@ -1,4 +1,4 @@
-/* ASTRO OPS — Asteroids-like • Grande + Tela Cheia + Fixes CodePen/Deploy */
+/* ASTRO OPS — Asteroids-like • Start robusto (Space/Enter/Clique/Toque) + Fullscreen + Fixes */
 (function () {
   // ===== Canvas & DPI
   const DPR = Math.max(1, window.devicePixelRatio || 1);
@@ -22,9 +22,7 @@
     canvas.height = Math.round(h * DPR);
   }
   window.addEventListener('resize', () => requestAnimationFrame(fitCanvas), {passive:true});
-  // 2 RAF garantem que o CSS aplicou antes do cálculo
   requestAnimationFrame(() => requestAnimationFrame(fitCanvas));
-  // fallback no 1º clique
   canvas.addEventListener('mousedown', function once(){ if(!canvas.width||!canvas.height) fitCanvas(); canvas.removeEventListener('mousedown', once); }, {once:true});
 
   // ===== Fullscreen (F / botão ⛶) com fallback "max"
@@ -39,8 +37,7 @@
         if (document.exitFullscreen) await document.exitFullscreen();
       }
     } catch(e) {
-      // fallback: modo "max" se fullscreen não estiver disponível (ex: iframe)
-      wrap.classList.toggle('max');
+      wrap.classList.toggle('max'); // fallback
     } finally {
       setTimeout(fitCanvas, 50);
     }
@@ -56,18 +53,26 @@
 
   // ===== Input
   const keys = new Set();
+  function isSpaceKey(k){ return k===' ' || k==='space' || k==='spacebar' || k==='space bar'; }
+  function isEnterKey(k){ return k==='enter' || k==='return'; }
+
+  // Evita a página consumir a barra de espaço/scroll
   window.addEventListener('keydown', e => {
-    if (['ArrowUp','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
-    keys.add(e.key.toLowerCase());
+    const key = e.key.toLowerCase();
+    if (['arrowup','arrowleft','arrowright'].includes(key) || isSpaceKey(key)) e.preventDefault();
+    keys.add(key);
   });
   window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+  window.addEventListener('keypress', e => { if (isSpaceKey(e.key.toLowerCase())) e.preventDefault(); });
 
   // ===== Áudio (WebAudio robusto)
   let audio = null, muted = false;
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     audio = new AC();
-    window.addEventListener('keydown', () => { if (audio.state === 'suspended') audio.resume(); }, {once:true});
+    const unlock = ()=>{ if (audio.state === 'suspended') audio.resume(); window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock); };
+    window.addEventListener('pointerdown', unlock, {once:true});
+    window.addEventListener('keydown', unlock, {once:true});
   } catch (e) { muted = true; }
   const beep = (o={})=>{
     if (muted || !audio) return;
@@ -115,12 +120,12 @@
         parts.push(new Part(this.x-Math.cos(this.a)*this.r,this.y-Math.sin(this.a)*this.r, rand(-40,40)*DPR-this.vx*.1, rand(-40,40)*DPR-this.vy*.1, rand(.18,.35),'th'));
       }
       this.vx*=Math.pow(damp,dt*60); this.vy*=Math.pow(damp,dt*60);
-
       this.x=wrapXY(this.x+this.vx*dt,W());
       this.y=wrapXY(this.y+this.vy*dt,H());
-
       this.cool-=dt; 
-      if(keys.has(' ') && this.cool<=0) this.shoot();
+      if(keys.has(' ') || keys.has('space') || keys.has('spacebar')) {
+        if (this.cool<=0) this.shoot();
+      }
       if(keys.has('h')){ keys.delete('h'); this.hyper(); }
       this.inv-=dt;
     }
@@ -154,7 +159,7 @@
     draw(){
       ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(this.a);
       const blink=this.inv>0 && Math.floor(this.inv*10)%2===0;
-      ctx.globalAlpha = blink ? 0.35 : 1;  // (corrigido)
+      ctx.globalAlpha = blink ? 0.35 : 1;
       ctx.lineWidth = 2*DPR; ctx.strokeStyle='#b3f3ff';
       ctx.beginPath();
       ctx.moveTo(18*DPR,0); ctx.lineTo(-14*DPR,11*DPR); ctx.lineTo(-8*DPR,0); ctx.lineTo(-14*DPR,-11*DPR); ctx.closePath(); ctx.stroke();
@@ -273,7 +278,7 @@
   function render(){
     ctx.clearRect(0,0,W(),H());
 
-    // estrelas de fundo (baratinhas)
+    // estrelas de fundo
     ctx.save(); ctx.globalAlpha=.25; ctx.fillStyle='#89b7d3';
     for(let i=0;i<40;i++){ const x=(i*97)%W(), y=(i*233)%H(); ctx.fillRect(x,y,2*DPR,2*DPR); }
     ctx.restore();
@@ -312,29 +317,49 @@
   }
   requestAnimationFrame(loop);
 
-  // ===== Controle do jogo
+  // ===== Controle do jogo (START robusto)
   function startGame(){
     score=0; level=1; lives=3; elScore.textContent=0; elLevel.textContent=1;
     bullets=[]; rocks=[]; parts=[];
     fitCanvas(); ship=new Ship(); spawnLevel();
     overlay.classList.add('hidden'); gameRunning=true; paused=false;
+    // foca no canvas para setas/espaço funcionarem sem rolagem do iframe
+    canvas.focus({preventScroll:true});
   }
   function gameOver(){
     gameRunning=false;
     if(score>hiScore){ hiScore=score; localStorage.setItem('astroops.hi', hiScore); }
     elHi.textContent=hiScore; ovScore.textContent=score; ovHi.textContent=hiScore; ovLevel.textContent=level;
-    ovTitle.textContent='GAME OVER'; ovSub.innerHTML='Pressione <b>R</b> para reiniciar';
+    ovTitle.textContent='GAME OVER'; ovSub.innerHTML='Pressione <b>R</b>, <b>Espaço</b> ou <b>Clique</b> para reiniciar';
     overlay.classList.remove('hidden');
   }
 
-  // estado inicial + atalhos
+  // overlay inicial + handlers extras
   ovScore.textContent=0; ovLevel.textContent=1; overlay.classList.remove('hidden');
+
+  // 1) clique/toque no overlay ou no canvas inicia
+  overlay.addEventListener('click', (e)=>{ e.preventDefault(); if(!gameRunning) startGame(); });
+  overlay.addEventListener('touchstart', (e)=>{ e.preventDefault(); if(!gameRunning) startGame(); }, {passive:false});
+  canvas.addEventListener('click', ()=>{ if(!gameRunning) startGame(); });
+
+  // 2) teclado global — aceita Space/Spacebar/Enter/R
+  function handleStartKeys(e){
+    const k = e.key.toLowerCase();
+    if (isSpaceKey(k) || isEnterKey(k) || k==='r') {
+      e.preventDefault();
+      if (!gameRunning) startGame();
+    }
+  }
+  window.addEventListener('keydown', handleStartKeys);
+
+  // 3) atalhos durante o jogo
   window.addEventListener('keydown', e=>{
     const k=e.key.toLowerCase();
-    if(!gameRunning && (k===' ' || k==='r')){ startGame(); return; }
     if(k==='p'){ paused=!paused; ovTitle.textContent='PAUSA'; ovSub.textContent='Pressione P para continuar'; overlay.classList.toggle('hidden', !paused); }
     if(k==='m'){ muted=!muted; }
-    if(k==='r'){ startGame(); }
+    if(k==='r' && gameRunning){ // reinício rápido
+      startGame();
+    }
   });
 
 })();
