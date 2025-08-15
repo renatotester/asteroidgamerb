@@ -21,16 +21,17 @@
       </div>
     </header>
 
-    <canvas id="game"></canvas>
+    <!-- tabindex permite foco via clique, ajudando no CodePen -->
+    <canvas id="game" tabindex="0" aria-label="Astro Ops - campo de jogo"></canvas>
 
     <footer class="help">
-      ← → girar • ↑ acelerar • Espaço atirar • H hiper‑salto • P pausa • M mute • R reiniciar • F tela cheia
+      ← → girar • ↑ acelerar • Espaço/Enter iniciar/atirar • H hiper‑salto • P pausa • M mute • R reiniciar • F tela cheia
     </footer>
 
-    <div id="overlay" class="overlay">
+    <div id="overlay" class="overlay" role="dialog" aria-modal="true">
       <div class="card">
         <h2 id="title">ASTRO OPS</h2>
-        <p id="subtitle">Pressione <b>Espaço</b> para começar</p>
+        <p id="subtitle">Pressione <b>Espaço</b>, <b>Enter</b> ou <b>Clique</b> para começar</p>
         <div class="stats">
           <div>Score: <b id="ovScore">0</b></div>
           <div>Hi: <b id="ovHi">0</b></div>
@@ -45,4 +46,5 @@
   <script src="game.js" defer></script>
 </body>
 </html>
+
 
